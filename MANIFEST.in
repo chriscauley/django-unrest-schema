@@ -1,0 +1,3 @@
+recursive-include lablackey *
+global-exclude *.pyc
+global-exclude *~
