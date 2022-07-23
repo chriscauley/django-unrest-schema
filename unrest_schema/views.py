@@ -2,6 +2,8 @@ from django.http import Http404
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django import forms
+
+import distutils.util
 import json
 import re
 
@@ -131,15 +133,24 @@ def schema_form(request, form_class, object_id=None, method=None, content_type=N
         return JsonResponse({'error': 'You do not have access to this resource'}, status=403)
     if model.__name__ == 'User':
         model = get_user_model()
-    query = model.objects.all()
+
+    form = form_class()
+    form.request = request
+    if hasattr(form, 'get_queryset'):
+        queryset = form.get_queryset(request)
+    else:
+        queryset = model.objects.all()
     # TODO this should be explicit like form_class.filter_fields or similar
     for field_name in form_class.Meta.fields:
         if field_name in request.GET:
-            query = query.filter(**{field_name: request.GET[field_name]})
+            queryset = queryset.filter(**{field_name: request.GET[field_name]})
     for field_name in getattr(form_class, 'filter_fields', None) or []:
         if field_name in request.GET:
-            query = query.filter(**{field_name: request.GET[field_name]})
-    response = JsonResponse(paginate(query, process=process, query_dict=request.GET))
+            value = request.GET[field_name]
+            if field_name.endswith('__isnull'):
+                value = bool(distutils.util.strtobool(value))
+            queryset = queryset.filter(**{field_name: value})
+    response = JsonResponse(paginate(queryset, process=process, query_dict=request.GET))
     return response
 
 
