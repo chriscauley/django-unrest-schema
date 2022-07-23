@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 setup(
   name = 'django-unrest-schema',
   packages = find_packages(),
-  version = '0.0.1',
+  version = '0.0.2',
   description = 'A library for serving django forms using json schema and a restful api.',
   long_description="",
   long_description_content_type="text/markdown",
