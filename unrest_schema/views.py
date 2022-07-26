@@ -1,4 +1,4 @@
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django import forms
@@ -135,6 +135,11 @@ def schema_form(request, form_class, object_id=None, method=None, content_type=N
         model = get_user_model()
 
     form = form_class()
+    if hasattr(form, 'get_list_cache'):
+        value = form.get_list_cache(request)
+        if value:
+            return HttpResponse(value, content_type="application/json", )
+
     form.request = request
     if hasattr(form, 'get_queryset'):
         queryset = form.get_queryset(request)
@@ -150,8 +155,10 @@ def schema_form(request, form_class, object_id=None, method=None, content_type=N
             if field_name.endswith('__isnull'):
                 value = bool(distutils.util.strtobool(value))
             queryset = queryset.filter(**{field_name: value})
-    response = JsonResponse(paginate(queryset, process=process, query_dict=request.GET))
-    return response
+    data = paginate(queryset, process=process, query_dict=request.GET)
+    if hasattr(form, 'set_list_cache'):
+        form.set_list_cache(request, json.dumps(data))
+    return JsonResponse(data)
 
 
 def get_model_and_admin(app_label, model_name):
