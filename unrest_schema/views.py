@@ -52,7 +52,10 @@ def schema_form(request, form_class, object_id=None, method=None, content_type=N
         model = _meta.model
     kwargs = {}
     if object_id:
-        kwargs['instance'] = model.objects.get(id=object_id)
+        if hasattr(form_class, 'get_one'):
+            kwargs['instance'] = form_class.get_one(object_id)
+        else:
+            kwargs['instance'] = model.objects.get(id=object_id)
     if getattr(_meta, 'login_required', None) and not request.user.is_authenticated:
         print("DEPRECATION WARNING: user form.user_can_METHOD = 'AUTH' instead of meta option.")
         return JsonResponse({'error': 'You must be logged in to do this'}, status=403)
