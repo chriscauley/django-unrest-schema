@@ -80,6 +80,16 @@ def schema_form(request, form_class, object_id=None, method=None, content_type=N
             return True
         return f and f(instance, request.user)
 
+    def process(instance):
+        out = { 'id': instance.id }
+        form = form_class(instance=instance)
+        for field_name in form.Meta.fields:
+            out[field_name] = get_default_value(form, field_name)
+        for field_name in getattr(form, 'readonly_fields', []):
+            # TODO should this be on the model or the form?
+            out[field_name] = getattr(instance, field_name)
+        return out
+
     if request.method == "POST" or request.method == "PUT":
         # POST/PUT /api/schema/MODEL/ or /api/schema/MODEL/PK/
         if kwargs.get('instance') and not check_permission('PUT'):
@@ -97,10 +107,10 @@ def schema_form(request, form_class, object_id=None, method=None, content_type=N
         form.request = request
         if form.is_valid():
             instance = form.save()
-            data = {}
-            if instance:
-                data = {'id': instance.id, 'name': str(instance)}
-            return JsonResponse(data)
+            if not instance:
+                # not all forms are model forms
+                return JsonResponse({})
+            return JsonResponse(process(instance))
         errors = { k: v[0] for k, v in form.errors.get_json_data().items()}
         return JsonResponse({'errors': errors}, status=400)
 
@@ -118,16 +128,6 @@ def schema_form(request, form_class, object_id=None, method=None, content_type=N
         # /api/schema/MODEL/?schema=1 or /api/schema/MODEL/PK/?schema=1
         schema = form_to_schema(form_class(**kwargs))
         return JsonResponse({'schema': schema})
-
-    def process(instance):
-        out = { 'id': instance.id }
-        form = form_class(instance=instance)
-        for field_name in form.Meta.fields:
-            out[field_name] = get_default_value(form, field_name)
-        for field_name in getattr(form, 'readonly_fields', []):
-            # TODO should this be on the model or the form?
-            out[field_name] = getattr(instance, field_name)
-        return out
 
     if kwargs.get('instance'):
         # /api/schema/MODEL/PK/
