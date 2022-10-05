@@ -89,8 +89,10 @@ def schema_form(request, form_class, object_id=None, method=None, content_type=N
         if content_type == 'application/json':
             data = json.loads(request.body.decode('utf-8') or "{}")
             form = form_class(data, **kwargs)
+            form.request_data = data
         else:
             form = form_class(request.POST, request.FILES, **kwargs)
+            form.request_data = request.POST
 
         form.request = request
         if form.is_valid():
