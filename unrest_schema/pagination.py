@@ -7,7 +7,7 @@ def paginate(items, per_page=25, process=noop, extra={}, query_dict={}):
     if 'per_page' in query_dict:
         per_page = int(query_dict['per_page'])
     if per_page == 0:
-        per_page = 1e16
+        per_page = int(1e16)
     offset = (page - 1) * per_page
     total = len(items)
     return {
