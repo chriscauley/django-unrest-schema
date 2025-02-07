@@ -106,6 +106,8 @@ def field_to_schema(field):
 
 
 def get_default_value(form, name):
+  if name in getattr(form, 'ignore_fields', []):
+      return
   if form.fields[name].__class__.__name__ == 'ModelChoiceField':
     return getattr(form.instance, name + '_id')
   value = getattr(form.instance, name)
@@ -142,5 +144,8 @@ def form_to_schema(form):
 
   if hasattr(form, 'form_title'):
     schema['title'] = form.form_title
+
+  if hasattr(form, 'prep_schema'):
+    form.prep_schema(schema)
 
   return schema

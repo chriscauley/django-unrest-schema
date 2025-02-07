@@ -67,10 +67,6 @@ def schema_form(request, form_class, object_id=None, method=None, content_type=N
             return True
         instance = kwargs.get('instance')
         f = getattr(form_class, 'user_can_' + permission, None)
-        if f == 'SELF':
-            return request.user == instance
-        if f == 'OWN':
-            return request.user == instance.user
         if f == 'ALL':
             return True
         if f == 'AUTH':
@@ -78,6 +74,13 @@ def schema_form(request, form_class, object_id=None, method=None, content_type=N
         if f == 'ANY':
             print("DEPRECATION WARNING: user_can_METHOD='ANY' should be 'ALL' or 'AUTH'")
             return True
+        if not instance:
+            # need to handle permission check for LIST and POST in other ways
+            return True
+        if f == 'SELF':
+            return request.user == instance
+        if f == 'OWN':
+            return request.user == instance.user
         return f and f(instance, request.user)
 
     def process(instance):
@@ -159,8 +162,16 @@ def schema_form(request, form_class, object_id=None, method=None, content_type=N
             value = request.GET[field_name]
             if field_name.endswith('__isnull'):
                 value = bool(distutils.util.strtobool(value))
+            if field_name.endswith('__in'):
+                value = request.GET.getlist(field_name)
             queryset = queryset.filter(**{field_name: value})
     data = paginate(queryset, process=process, query_dict=request.GET)
+    permission = getattr(form_class, 'user_can_LIST', None)
+    if permission == 'OWN':
+        queryset = queryset.filter(user=request.user)
+    if permission == 'SELF':
+        # SELF is for instance == user, so this is a bad request
+        return JsonResponse({'error': 'You do not have access to this resource'}, status=403)
     if hasattr(form, 'set_list_cache'):
         form.set_list_cache(request, json.dumps(data))
     return JsonResponse(data)
